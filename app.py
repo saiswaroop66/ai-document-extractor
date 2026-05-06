@@ -7,25 +7,22 @@ import spacy
 import json
 import pandas as pd
 
-# Load NLP model
-import spacy
-import subprocess
-import sys
-
+# -------------------------------
+# 🔧 SAFE SPACY MODEL LOADER
+# -------------------------------
+@st.cache_resource
 def load_model():
     try:
         return spacy.load("en_core_web_sm")
-    except OSError:
-        subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
+    except:
+        from spacy.cli import download
+        download("en_core_web_sm")
         return spacy.load("en_core_web_sm")
 
 nlp = load_model()
 
-# Set Tesseract path (Windows users only)
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-
 # -------------------------------
-# 📄 Extract PDF Text
+# 📄 PDF TEXT EXTRACTION
 # -------------------------------
 def extract_pdf_text(file):
     reader = PyPDF2.PdfReader(file)
@@ -36,27 +33,25 @@ def extract_pdf_text(file):
     return text
 
 # -------------------------------
-# 🖼️ Extract Image Text (OCR)
+# 🖼️ IMAGE OCR
 # -------------------------------
 def extract_image_text(image):
     return pytesseract.image_to_string(image)
 
 # -------------------------------
-# 🔵 NLP + REGEX EXTRACTION
+# 🧠 NLP + REGEX EXTRACTION
 # -------------------------------
 def extract_fields(text):
     doc = nlp(text)
 
     name, date, amount = None, None, None
 
-    # Named Entity Recognition
     for ent in doc.ents:
         if ent.label_ in ["ORG", "PERSON"] and not name:
             name = ent.text
         if ent.label_ == "DATE" and not date:
             date = ent.text
 
-    # Regex for amount
     amount_match = re.search(r'₹?\s?\d+(?:,\d{3})*(?:\.\d+)?', text)
     if amount_match:
         amount = amount_match.group()
@@ -73,23 +68,22 @@ def extract_fields(text):
 # -------------------------------
 st.set_page_config(page_title="AI Document Extractor", layout="wide")
 
-st.title("📄 AI Document Extractor (No API)")
-st.write("Upload a document and extract structured data (Name, Date, Amount)")
+st.title("📄 AI Document Extractor")
+st.write("Upload PDF or Image → Extract Name, Date, Amount")
 
-# File upload
 uploaded_file = st.file_uploader(
-    "Upload PDF or Image",
+    "Upload Document",
     type=["pdf", "png", "jpg", "jpeg"]
 )
 
 if uploaded_file:
     text = ""
 
-    # PDF
+    # PDF Handling
     if uploaded_file.type == "application/pdf":
         text = extract_pdf_text(uploaded_file)
 
-    # Image
+    # Image Handling
     else:
         image = Image.open(uploaded_file)
         st.image(image, caption="Uploaded Image", use_column_width=True)
@@ -103,7 +97,7 @@ if uploaded_file:
         result = extract_fields(text)
 
         # -------------------------------
-        # OUTPUT UI
+        # 📊 OUTPUT UI
         # -------------------------------
         st.subheader("📊 Extracted Data")
 
@@ -113,9 +107,9 @@ if uploaded_file:
         col2.metric("📅 Date", result.get("date", "N/A"))
         col3.metric("💰 Amount", result.get("amount", "N/A"))
 
-        st.info(f"Extraction Method: {result.get('method')}")
+        st.info(f"Method: {result.get('method')}")
 
-        # Validation
+        # Validation warning
         if not result.get("amount"):
             st.warning("⚠️ Amount not detected properly")
 
