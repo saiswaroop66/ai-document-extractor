@@ -8,7 +8,18 @@ import json
 import pandas as pd
 
 # Load NLP model
-nlp = spacy.load("en_core_web_sm")
+import spacy
+import subprocess
+import sys
+
+def load_model():
+    try:
+        return spacy.load("en_core_web_sm")
+    except OSError:
+        subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
+        return spacy.load("en_core_web_sm")
+
+nlp = load_model()
 
 # Set Tesseract path (Windows users only)
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
